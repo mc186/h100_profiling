@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# Profiling outputs
+*.csv
+*.json
+*.txt
+*.nsys-rep
+*.qdrep
+*.sqlite
+sweep.log
+
+# Model cache
+models/
+checkpoints/
+*.safetensors
+*.bin
+
+# Temporary files
+*.tmp
+*.log
+.DS_Store
