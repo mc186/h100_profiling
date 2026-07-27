@@ -104,6 +104,19 @@ def build_cogvideox(num_frames, height, width, model_id="THUDM/CogVideoX-2b"):
     return infer
 
 
+def build_unet3d(num_frames=16, height=256, width=256):
+    """Real 3D-conv video UNet (ModelScope T2V) - conv counterpart to CogVideoX DiT."""
+    from diffusers import TextToVideoSDPipeline
+    pipe = TextToVideoSDPipeline.from_pretrained(
+        "damo-vilab/text-to-video-ms-1.7b", torch_dtype=DTYPE).to("cuda")
+    pipe.set_progress_bar_config(disable=True)
+    def infer(b):
+        with torch.no_grad():
+            pipe(["A cat playing piano in a cozy room with warm lighting"] * b,
+                 num_frames=num_frames, height=height, width=width, num_inference_steps=20)
+    return infer
+
+
 BUILDERS = {
     "resnet-50": build_resnet,
     "unet-sd": build_unet_sd,
@@ -113,7 +126,7 @@ BUILDERS = {
     "llama-8b-4k": lambda: build_llama(4096),
     "llama-8b-16k": lambda: build_llama(16384),
     "llama-8b-64k": lambda: build_llama(65536),
-    "unet-3d": lambda: build_cogvideox(16, 480, 720),
+    "unet-3d": lambda: build_unet3d(16, 256, 256),
     "cogvideox-16f-480p": lambda: build_cogvideox(16, 480, 720),
     "cogvideox-49f-480p": lambda: build_cogvideox(49, 480, 720),
     "cogvideox-81f-480p": lambda: build_cogvideox(81, 480, 720),

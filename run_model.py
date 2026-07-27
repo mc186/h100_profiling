@@ -90,11 +90,35 @@ def run_dit_xl(batch_size):
     torch.cuda.synchronize()
     return images
 
-def run_unet_3d(batch_size):
-    """UNet-3D: 3D video UNet (using small video model as proxy)"""
-    print("  Loading 3D UNet (via CogVideoX-2b)...")
-    # Using CogVideoX as 3D UNet example with short video
-    return run_cogvideox(batch_size, num_frames=16, height=480, width=720, model_id="THUDM/CogVideoX-2b")
+def run_unet_3d(batch_size, num_frames=16, height=256, width=256):
+    """UNet-3D: real 3D-convolution video UNet (ModelScope text-to-video 1.7B).
+
+    UNet3DConditionModel = Conv3d blocks + temporal attention. This is the
+    conv-UNet counterpart to the DiT video model (CogVideoX), so the two form
+    an apples-to-apples architectural contrast (conv vs transformer).
+    """
+    from diffusers import TextToVideoSDPipeline
+    print("  Loading 3D UNet (ModelScope text-to-video 1.7B)...")
+    pipe = TextToVideoSDPipeline.from_pretrained(
+        "damo-vilab/text-to-video-ms-1.7b",
+        torch_dtype=torch.bfloat16
+    ).to("cuda")
+    pipe.set_progress_bar_config(disable=True)
+
+    prompt = ["A cat playing piano in a cozy room with warm lighting"] * batch_size
+
+    print(f"  Generating {batch_size} videos ({num_frames}f {height}x{width})...")
+    with torch.no_grad():
+        videos = pipe(
+            prompt,
+            num_frames=num_frames,
+            height=height,
+            width=width,
+            num_inference_steps=20
+        ).frames
+
+    torch.cuda.synchronize()
+    return videos
 
 def run_llama(batch_size, seq_length=1024):
     """Llama-3-8B at various sequence lengths (prefill only)"""
