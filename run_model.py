@@ -26,10 +26,10 @@ from diffusers import (
 import torchvision.models as models
 
 def run_stable_diffusion(batch_size):
-    """UNet-SD: Stable Diffusion 2.1"""
-    print("  Loading Stable Diffusion 2.1...")
+    """UNet-SD: Stable Diffusion v1.5"""
+    print("  Loading Stable Diffusion v1.5...")
     pipe = StableDiffusionPipeline.from_pretrained(
-        "stabilityai/stable-diffusion-2-1",
+        "runwayml/stable-diffusion-v1-5",
         torch_dtype=torch.bfloat16
     ).to("cuda")
 
@@ -47,9 +47,7 @@ def run_sdxl(batch_size):
     print("  Loading Stable Diffusion XL...")
     pipe = StableDiffusionXLPipeline.from_pretrained(
         "stabilityai/stable-diffusion-xl-base-1.0",
-        torch_dtype=torch.bfloat16,
-        variant="fp16",
-        use_safetensors=True
+        torch_dtype=torch.bfloat16
     ).to("cuda")
 
     prompt = ["a professional photo of an astronaut riding a horse"] * batch_size
@@ -124,7 +122,7 @@ def run_llama(batch_size, seq_length=1024):
 def run_resnet50(batch_size):
     """ResNet-50: Pure dense/conv anchor (no attention)"""
     print("  Loading ResNet-50...")
-    model = models.resnet50(pretrained=True).to("cuda").eval()
+    model = models.resnet50(weights="IMAGENET1K_V1").to("cuda").eval()
     model = model.to(torch.bfloat16)
 
     # Random input images (batch, 3, 224, 224)
