@@ -13,6 +13,25 @@ from run_model import MODEL_RUNNERS
 OUT = "/workspace/results"
 os.makedirs(OUT, exist_ok=True)
 
+# Non-compute traffic (memcpy/memset) — excluded from the compute denominator.
+NONCOMPUTE = ('memcpy', 'memset')
+# Attention kernels: flash-attn (LLMs) + fused SDPA/attention variants.
+ATTN = ('flash', 'attention', 'attn', 'fmha', 'scaled_dot', 'softmax')
+# Dense GEMM/conv: cuBLAS Hopper (nvjet), cutlass, xmma, classic sgemm/hgemm, wgrad, conv, mlp.
+DENSE = ('nvjet', 'gemm', 'cutlass', 'xmma', 'wgrad', 'implicit', 'conv', 'matmul',
+         'linear', 'mlp', 'cublas', 'gemv', 'dgrad')
+
+
+def classify(k):
+    """Classify a lowercased CUDA kernel name into attention/dense/other/noncompute."""
+    if any(x in k for x in NONCOMPUTE):
+        return 'noncompute'
+    if any(x in k for x in ATTN):
+        return 'attention'
+    if any(x in k for x in DENSE):
+        return 'dense'
+    return 'other'
+
 
 def profile_model(model_name, batch_size, output_dir=OUT):
     runner = MODEL_RUNNERS[model_name]
@@ -35,12 +54,7 @@ def profile_model(model_name, batch_size, output_dir=OUT):
         if evt.device_type != profiler.DeviceType.CUDA:
             continue
         k = evt.key.lower()
-        if any(x in k for x in ['attention', 'attn', 'qkv', 'softmax']):
-            op_class = 'attention'
-        elif any(x in k for x in ['gemm', 'conv', 'matmul', 'linear', 'mlp']):
-            op_class = 'dense'
-        else:
-            op_class = 'other'
+        op_class = classify(k)
         if hasattr(evt, 'cuda_time_total'):
             t = evt.cuda_time_total
         elif hasattr(evt, 'device_time_total'):
@@ -53,15 +67,21 @@ def profile_model(model_name, batch_size, output_dir=OUT):
     with open(f"{output_dir}/kernels_{model_name}_b{batch_size}.json", 'w') as f:
         json.dump({'model': model_name, 'batch': batch_size, 'kernels': results}, f, indent=2)
 
-    total = sum(r['cuda_time_us'] for r in results)
+    # Compute denominator excludes memcpy/memset (weight-load / host traffic).
+    total = sum(r['cuda_time_us'] for r in results if r['op_class'] != 'noncompute')
     attn = sum(r['cuda_time_us'] for r in results if r['op_class'] == 'attention')
     dense = sum(r['cuda_time_us'] for r in results if r['op_class'] == 'dense')
+    other = sum(r['cuda_time_us'] for r in results if r['op_class'] == 'other')
+    noncompute = sum(r['cuda_time_us'] for r in results if r['op_class'] == 'noncompute')
     return {
         'total_time_ms': total / 1000,
         'attention_time_ms': attn / 1000,
         'dense_time_ms': dense / 1000,
+        'other_time_ms': other / 1000,
+        'noncompute_time_ms': noncompute / 1000,
         'attention_pct': 100 * attn / total if total > 0 else 0,
         'dense_pct': 100 * dense / total if total > 0 else 0,
+        'other_pct': 100 * other / total if total > 0 else 0,
     }
 
 
@@ -90,8 +110,9 @@ if __name__ == "__main__":
             res = profile_model(m, batch)
             if res:
                 row = {'model': m, 'batch': batch, 'status': 'success', **res}
-                print(f"  OK total={res['total_time_ms']:.1f}ms "
-                      f"attn={res['attention_pct']:.1f}% dense={res['dense_pct']:.1f}%", flush=True)
+                print(f"  OK compute={res['total_time_ms']:.1f}ms "
+                      f"attn={res['attention_pct']:.1f}% dense={res['dense_pct']:.1f}% "
+                      f"other={res['other_pct']:.1f}%", flush=True)
             else:
                 row = {'model': m, 'batch': batch, 'status': 'failed'}
                 print("  OOM", flush=True)
