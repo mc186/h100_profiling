@@ -78,9 +78,12 @@ def run_dit_xl(batch_size):
     ).to("cuda")
 
     print(f"  Generating {batch_size} images...")
+    # DiTPipeline is class-conditional (ImageNet-1k); it takes class_labels,
+    # not batch_size. Use class 0 repeated to match the requested batch size.
+    class_labels = [0] * batch_size
     with torch.no_grad():
         images = pipe(
-            batch_size=batch_size,
+            class_labels=class_labels,
             num_inference_steps=20
         ).images
 
@@ -94,10 +97,10 @@ def run_unet_3d(batch_size):
     return run_cogvideox(batch_size, num_frames=16, height=480, width=720, model_id="THUDM/CogVideoX-2b")
 
 def run_llama(batch_size, seq_length=1024):
-    """Llama-2-7B at various sequence lengths (prefill only)"""
-    model_id = "meta-llama/Llama-2-7b-hf"  # Publicly accessible
+    """Llama-3-8B at various sequence lengths (prefill only)"""
+    model_id = "NousResearch/Meta-Llama-3-8B"  # Ungated mirror, no HF token needed
 
-    print(f"  Loading Llama-2-7B for seq_len={seq_length}...")
+    print(f"  Loading Llama-3-8B for seq_len={seq_length}...")
 
     tokenizer = AutoTokenizer.from_pretrained(model_id)
 
