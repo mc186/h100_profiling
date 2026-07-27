@@ -21,7 +21,8 @@ from diffusers import (
     StableDiffusionPipeline,
     StableDiffusionXLPipeline,
     DiTPipeline,
-    CogVideoXPipeline
+    CogVideoXPipeline,
+    AutoencoderKL
 )
 import torchvision.models as models
 
@@ -60,15 +61,23 @@ def run_sdxl(batch_size):
     return images
 
 def run_dit_xl(batch_size):
-    """DiT-XL: Diffusion Transformer XL"""
+    """DiT-XL: Diffusion Transformer XL with SD v1.5 VAE"""
     print("  Loading DiT-XL...")
+
+    # Use SD v1.5 VAE (already working/downloaded)
+    vae = AutoencoderKL.from_pretrained(
+        "runwayml/stable-diffusion-v1-5",
+        subfolder="vae",
+        torch_dtype=torch.bfloat16
+    ).to("cuda")
+
     pipe = DiTPipeline.from_pretrained(
         "facebook/DiT-XL-2-256",
+        vae=vae,
         torch_dtype=torch.bfloat16
     ).to("cuda")
 
     print(f"  Generating {batch_size} images...")
-    # DiT uses class labels, not text prompts
     with torch.no_grad():
         images = pipe(
             batch_size=batch_size,
@@ -85,16 +94,22 @@ def run_unet_3d(batch_size):
     return run_cogvideox(batch_size, num_frames=16, height=480, width=720, model_id="THUDM/CogVideoX-2b")
 
 def run_llama(batch_size, seq_length=1024):
-    """Llama-8B at various sequence lengths (prefill only)"""
-    model_id = "meta-llama/Meta-Llama-3-8B"  # Change to "meta-llama/Llama-2-7b-hf" if access issues
+    """Llama-2-7B at various sequence lengths (prefill only)"""
+    model_id = "meta-llama/Llama-2-7b-hf"  # Publicly accessible
 
-    print(f"  Loading Llama-8B for seq_len={seq_length}...")
+    print(f"  Loading Llama-2-7B for seq_len={seq_length}...")
+
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
+
+    # Fix: Add pad token if missing
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
     model = AutoModelForCausalLM.from_pretrained(
         model_id,
         torch_dtype=torch.bfloat16,
         device_map="cuda"
     )
-    tokenizer = AutoTokenizer.from_pretrained(model_id)
 
     # Generate input of specific sequence length
     # Use a repeated text to reach desired length
