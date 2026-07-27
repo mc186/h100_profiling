@@ -256,3 +256,34 @@ For questions about this profiling suite, refer to your HPCA paper draft or cont
 ---
 
 **Last updated**: 2026-07-23
+
+---
+
+## Using Jupyter Notebook (Recommended for RunPod)
+
+**Easiest way to run on RunPod**: Use the Jupyter notebook!
+
+### Quick Start
+
+1. **Launch H100 pod** with **Jupyter** template
+2. **Clone repo**:
+   ```bash
+   git clone https://github.com/mc186/h100_profiling.git
+   ```
+3. **Open notebook**: `H100_Profiling.ipynb`
+4. **Run cells in order**:
+   - Setup & GPU check
+   - Quick test (5 min)
+   - Full sweep (3-5 hours)
+
+### Advantages
+
+- ✅ Interactive progress tracking
+- ✅ See results as they complete
+- ✅ GPU diagnostics built-in
+- ✅ Easy to restart if interrupted
+- ✅ Results summary in notebook
+- ✅ No SSH issues
+
+See `H100_Profiling.ipynb` for full instructions.
+
